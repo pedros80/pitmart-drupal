@@ -1,0 +1,190 @@
+<?php
+
+/**
+ * Custom module to get most recently listed items by this pitmart member
+ * from pitmart/remote/getProductsByUser.php
+ *
+ * dependencies[] = pitmart
+ *
+ * requires pitmart module to define user ID and demo/live remote site.
+ * 
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function user_auctions_menu() {
+  $items = array();
+  $items['admin/config/content/user_auctions'] = array(
+      'title' => 'User Auctions',
+      'description' => 'Configuration for user auctions module',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('user_auctions_form'),
+      'access arguments' => array('access administration pages'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+  return $items;
+}
+
+/**
+ * Implements hook_form()
+ */
+function user_auctions_form($form, &$form_state) {
+
+  $form['user_auctions_num_items'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of user auctions to show'),
+    '#default_value' => variable_get('user_auctions_num_items', 3),
+    '#size' => 2,
+    '#description' => t('The number of user_auctions to show in the right hand column of clubhouse'),
+    '#required' => TRUE,
+    );
+
+  $form['user_auctions_pics'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Images?'),
+    '#description' => t('Include image paths in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('user_auctions_pics', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['user_auctions_type'] = array(
+    '#type' => 'radios',
+    '#title' => t('Type of product'),
+    '#description' => t('Include buy now only, auctions or both'),
+    '#options' => array('all' => t('Both'), 'buy_now' => t('Buy Now'), 'auction' => t('Auction')),
+    '#default_value' => variable_get('user_auctions_type', 'all'),
+    '#required' => TRUE,
+    );
+
+  $form['user_auctions_price'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Prices?'),
+    '#description' => t('Include product prices in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('user_auctions_price', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['user_auctions_end'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show End Time?'),
+    '#description' => t('Include end time or when sold in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('user_auctions_end', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['user_auctions_class_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Class Name For Auctions'),
+    '#default_value' => variable_get('user_auctions_class_name', 'user_auctions'),
+    '#size' => 20,
+    '#description' => t('The class applied to each div which contains an auction. For multiple classes, separate with a space.'),
+    '#required' => TRUE,
+    );
+
+  return system_settings_form($form);
+
+}
+
+/**
+* Implements validation from the Form API.
+*
+* @param $form
+*   A structured array containing the elements and properties of the form.
+* @param $form_state
+*   An array that stores information about the form's current state
+*   during processing.
+*/
+function user_auctions_form_validate($form, &$form_state){
+  $max_num = $form_state['values']['user_auctions_num_items'];
+
+  if (!is_numeric($max_num)){
+    form_set_error('user_auctions_num_items', t('You must enter a number for the maximum number of posts to display.'));
+  }
+  else if ($max_num <= 0){
+    form_set_error('user_auctions_num_items', t('Maximum number of posts to display must be positive.'));
+  }
+}
+
+
+/**
+* Implements hook_help.
+*
+* Displays help and module information.
+*
+* @param path
+*   Which path of the site we're using to display help
+* @param arg
+*   Array that holds the current path as returned from arg() function
+*/
+function user_auctions_help($path, $arg){
+  switch ($path) {
+    case 'admin/help#user_auctions':
+      $output = '<h1>'.t('Returns data on current users auctions on pitmart').'</h1>';
+      $output .= '<p><b>'.t('Requires pitmart module to be enabled and configured to get your pitmart user id number and whether you are using the pitmart live or demo site').'</b></p>';
+      $output .= '<p>'.t('Select the number of auctions to show, whether or not to display images, prices, end time and the type of product (buy now, auction or both)').'</p>';
+      $output .= '<p>'.t('Each auction is output in a separate div element with user defined class(es) to allow further styling and customisation through your css').'</p>';
+      return $output;
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function user_auctions_block_info() {
+  $blocks['user_auctions'] = array(
+    'info' => t('User Auctions'),
+    'cache' => DRUPAL_CACHE_PER_ROLE,
+    );
+  return $blocks;
+}
+
+/**
+* Implements hook_block_view().
+*
+* Prepares the contents of the block.
+*/
+function user_auctions_block_view($delta = '') {
+  switch ($delta) {
+    case 'user_auctions':
+      if (user_access('access content')) {
+
+        $user_auctions = get_user_auctions();
+
+        $class = (strlen(variable_get('user_auctions_class_name'))) ? ' class="'.variable_get('user_auctions_class_name').'"' : '';
+        $pics = (variable_get('user_auctions_pics') != 'n') ? true : false;
+        $price = (variable_get('user_auctions_price') != 'n') ? true : false;
+        $end = (variable_get('user_auctions_end') != 'n') ? true : false;
+        $block['content'] = '';
+        foreach ($user_auctions as $auction) {
+          $auction_content = '<div'.$class.'>';
+          $auction_content .= '<a href="'.get_auction_link($auction).'">'.$auction->name.'</a>';
+          if ($pics) {
+            $auction_content .= '<br><img src="'.get_auction_image($auction).'" alt="'.$auction->name.'" title="'.$auction->name.'">';
+          }
+          if ($price) {
+            $auction_content .= '<br>'.$auction->price;
+          }
+          if ($end) {
+            $auction_content .= '<br>'.$auction->ends;
+          }
+          $auction_content .= '</div>';
+          $block['content'] .= $auction_content;
+        }
+
+      }
+    return $block;
+  }
+}
+
+/**
+ * return a SimpleXmlElement containing upto [user_auctions_num_items] of listings by [pitmart_user_id] from pitmart web service feed.
+ */
+function get_user_auctions() {
+  return get_pitmart_feed(variable_get('pitmart_pitmart_url').'remote/getProductsByUser.php?user='.variable_get('pitmart_user_id').'&num='.variable_get('user_auctions_num_items').'&type='.variable_get('user_auctions_type').'&price='.variable_get('user_auctions_price').'&end='.variable_get('user_auctions_end'));
+}

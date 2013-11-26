@@ -1,0 +1,169 @@
+<?php
+
+/**
+ * Custom module that defines your pitmart data; user id and demo/live site.
+ *
+ * Provides helper functions for those modules which depend on pitmart module; currently
+ *
+ * - User Auctions
+ * - Recent Auctions
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function pitmart_menu() {
+  $items = array();
+  $items['admin/config/content/pitmart'] = array(
+      'title' => 'Pitmart',
+      'description' => 'Configuration for user auctions module',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pitmart_form'),
+      'access arguments' => array('access administration pages'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+  return $items;
+}
+
+/**
+ * Implements hook_form().
+ */
+function pitmart_form($form, &$form_state) {
+
+  $form['pitmart_user_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Pitmart User ID'),
+    '#default_value' => variable_get('pitmart_user_id', 100207),
+    '#size' => 5,
+    '#description' => t('Please Enter Your Pitmart User ID'),
+    '#required' => TRUE,
+  );
+
+  $form['pitmart_pitmart_url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL to pitmart site'),
+    '#default_value' => variable_get('pitmart_pitmart_url', 'http://pitmartlive'),
+    '#size' => 50,
+    '#description' => t('The url (including http:// and trailing slash) of the pitmart site clubhouse is linked to. Live/Local'),
+    '#required' => TRUE,
+    );
+
+  return system_settings_form($form);
+
+}
+
+/**
+* Implements validation from the Form API.
+*
+* @param $form
+*   A structured array containing the elements and properties of the form.
+* @param $form_state
+*   An array that stores information about the form's current state
+*   during processing.
+*/
+function pitmart_form_validate($form, &$form_state) {
+  $current_url = $form_state['values']['pitmart_pitmart_url'];
+  $user_id = $form_state['values']['pitmart_user_id'];
+
+  if (!is_numeric($user_id)) {
+    form_set_error('pitmart_user_id', t('You must enter a number for your user id'));
+  }
+  else if ($user_id <= 0) {
+    form_set_error('pitmart_user_id', t('Your pitmart ID must be postitive'));
+  }
+
+  if (substr($current_url, -1) != '/') {
+    form_set_error('pitmart_pitmart_url', t('URL must have trailing slash e.g. http://www.example.com/'));
+  }
+  if (substr($current_url,0,7) != 'http://') {
+    form_set_error('pitmart_pitmart_url', t('URL must start with http://'));
+  }
+}
+
+
+/**
+* Implements hook_help.
+*
+* Displays help and module information.
+*
+* @param path
+*   Which path of the site we're using to display help
+* @param arg
+*   Array that holds the current path as returned from arg() function
+*/
+function pitmart_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#pitmart':
+      $output = '<h1>'.t('Configuration Module for Pitmart Data Modules').'</h1>';
+      $output .= '<p><b>'.t('Must be configured before using User Auctions and/or Recent Auctions modules').'</b></p>';
+      $output .= '<p>'.t('Add your pitmart user id and whether or not you are using the pitmart live or demo site, e.g. http://www.pitmart.com/ or http://www.pitmart.com/demo/').'</p>';
+      return $output;
+      break;
+  }
+}
+
+
+
+/**
+ * Helper functions used pitmart module and any that depend on it.
+ */
+
+/**
+ * Create a correctly formatted link to the auction.
+ *
+ * @param  object $auction the current featured auction
+ * @return string - seo'd link to the auction on the current pitmart server (local/live)
+ */
+function get_auction_link($auction) {
+
+  $clean_name = strtolower(preg_replace(array('/[^a-zA-Z0-9_ -]/', '/[ -]+/', '/^-|-$/'), array('', '-', ''), $auction->name));
+  $clean_name = str_replace('amp','and',$clean_name);
+  $clean_name = str_replace('quot','',$clean_name);
+  $clean_name = str_replace('039','',$clean_name);
+  $clean_name = str_replace(' ','-',$clean_name);
+
+  return variable_get('pitmart_pitmart_url').$clean_name.',name,'.$auction->auction_id.',auction_id,auction_details';
+}
+
+/**
+ * Construct a url to the auctions image or default pitmart if none.
+ * 
+ * @param  SimpleXmlElement $auction The current auction being processed
+ * @return string - the url to the auction's image
+ */
+function get_auction_image($auction) {
+  if ($auction->image) {
+    return variable_get('pitmart_pitmart_url')."thumbnail.php?pic=".$auction->image."&amp;w=100&amp;sq=Y";
+  }
+  else {
+    return variable_get('pitmart_pitmart_url')."thumbnail.php?pic=themes/ultra/img/system/noimg.gif&amp;w=100&amp;sq=Y";
+  }
+}
+
+/**
+ * Use cURL to get content from pitmart web service feed.
+ * 
+ * @param  [string] $feed [the url of the desired pitmart web service feed]
+ * @return [string]       [the xml returned by the pitmart web service feed]
+ */
+function get_pitmart_feed_object($feed) {
+   $ch = curl_init();
+   curl_setopt($ch, CURLOPT_URL, $feed);
+   curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+   curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, 0);
+   $output = curl_exec($ch);
+   curl_close($ch);
+   return $output;
+}
+
+/**
+ * Create a SimpleXmlElement from the contents of the pitmart web service feed.
+ * 
+ * @param  [string] $feed [the url of the desired pitmart web service feed]
+ * @return [SimpleXmlElement]       [contains the required xml from the pitmart web service feed]
+ */
+function get_pitmart_feed($feed) {
+   return new SimpleXmlElement(get_pitmart_feed_object($feed));
+}
+

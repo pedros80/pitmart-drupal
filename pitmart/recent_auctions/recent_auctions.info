@@ -1,0 +1,8 @@
+name = Recent Auctions
+description = A block module that returns recent pitmart auctions. The returned auction data can be filtered to include only 'exclusive' listings or just the N most recently listed.
+core = 7.x
+package = pitmart
+
+dependencies[] = pitmart
+
+configure = admin/config/content/recent_auctions

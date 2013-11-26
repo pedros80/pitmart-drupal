@@ -1,0 +1,8 @@
+name = User Auctions
+description = A block module that returns current pitmart auctions for a particular user
+core = 7.x
+package = pitmart
+
+dependencies[] = pitmart
+
+configure = admin/config/content/user_auctions

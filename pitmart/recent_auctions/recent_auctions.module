@@ -1,0 +1,202 @@
+<?php
+
+/**
+ * Custom module to get Pitmart recent auctions
+ * from pitmart/remote/getRecent.php
+ * 
+ * dependencies[] = pitmart
+ * 
+ */
+
+
+/**
+ * Implements hook_menu().
+ */
+function recent_auctions_menu() {
+  $items = array();
+  $items['admin/config/content/recent_auctions'] = array(
+      'title' => 'Recent Auctions',
+      'description' => 'Configuration for recent auctions module',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('recent_auctions_form'),
+      'access arguments' => array('access administration pages'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+  return $items;
+}
+
+/**
+ * Implements hook_form().
+ */
+function recent_auctions_form($form, &$form_state) {
+
+  $form['recent_auctions_num_items'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of user auctions to show'),
+    '#default_value' => variable_get('recent_auctions_num_items', 3),
+    '#size' => 2,
+    '#description' => t('The number of recent_auctions to show in the right hand column of clubhouse'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_exclusive'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Pitmart Exclusives Only?'),
+    '#description' => t('Only return those auctions/buy now onlys which are pitmart exclusive listings'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('recent_auctions_exclusive', 'n'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_pics'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Images?'),
+    '#description' => t('Include image paths in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('recent_auctions_pics', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_type'] = array(
+    '#type' => 'radios',
+    '#title' => t('Type of product'),
+    '#description' => t('Include buy now only, auctions or both'),
+    '#options' => array('all' => t('Both'), 'buy_now' => t('Buy Now'), 'auction' => t('Auction')),
+    '#default_value' => variable_get('recent_auctions_type', 'all'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_price'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Prices?'),
+    '#description' => t('Include product prices in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('recent_auctions_price', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_end'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show End Time?'),
+    '#description' => t('Include end time or when sold in feed'),
+    '#options' => array('n' => t('No'), 'y' => t('Yes')),
+    '#default_value' => variable_get('recent_auctions_end', 'y'),
+    '#required' => TRUE,
+    );
+
+  $form['recent_auctions_class_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Class Name For Auctions'),
+    '#default_value' => variable_get('recent_auctions_class_name', 'recent_auctions'),
+    '#size' => 20,
+    '#description' => t('The class applied to each div which contains an auction. For multiple classes, separate with a space.'),
+    '#required' => TRUE,
+    );
+
+  return system_settings_form($form);
+
+}
+
+/**
+* Implements validation from the Form API.
+*
+* @param $form
+*   A structured array containing the elements and properties of the form.
+* @param $form_state
+*   An array that stores information about the form's current state
+*   during processing.
+*/
+function recent_auctions_form_validate($form, &$form_state){
+  $max_num = $form_state['values']['recent_auctions_num_items'];
+
+  if (!is_numeric($max_num)){
+    form_set_error('recent_auctions_num_items', t('You must enter a number for the maximum number of posts to display.'));
+  }
+  else if ($max_num <= 0){
+    form_set_error('recent_auctions_num_items', t('Maximum number of posts to display must be positive.'));
+  }
+}
+
+
+/**
+* Implements hook_help.
+*
+* Displays help and module information.
+*
+* @param path
+*   Which path of the site we're using to display help
+* @param arg
+*   Array that holds the current path as returned from arg() function
+*/
+function recent_auctions_help($path, $arg){
+  switch ($path) {
+    case 'admin/help#recent_auctions':
+      $output = '<h1>'.t('Returns data products recently listed on pitmart').'</h1>';
+      $output .= '<p><b>'.t('Requires pitmart module to be enabled and configured to determine whether you are using the pitmart live or demo site').'</b></p>';
+      $output .= '<p>'.t('Select the number of auctions to show, whether or not to display images, prices, end time and the type of product (buy now, auction or both)').'</p>';
+      $output .= '<p>'.t('Each auction is output in a separate div element with user defined class(es) to allow further styling and customisation through your css').'</p>';
+      return $output;
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function recent_auctions_block_info() {
+  $blocks['recent_auctions'] = array(
+    'info' => t('Recent Auctions'),
+    'cache' => DRUPAL_CACHE_PER_ROLE,
+    );
+  return $blocks;
+}
+
+/**
+* Implements hook_block_view().
+*
+* Prepares the contents of the block.
+*/
+function recent_auctions_block_view($delta = '') {
+  switch ($delta) {
+    case 'recent_auctions':
+      if (user_access('access content')) {
+
+        $recent_auctions = get_recent_auctions();
+
+        $class = (strlen(variable_get('recent_auctions_class_name'))) ? ' class="'.variable_get('recent_auctions_class_name').'"' : '';
+        $pics = (variable_get('recent_auctions_pics') != 'n') ? true : false;
+        $price = (variable_get('recent_auctions_price') != 'n') ? true : false;
+        $end = (variable_get('recent_auctions_end') != 'n') ? true : false;
+        $block['content'] = '';
+        foreach ($recent_auctions as $auction) {
+          $auction_content = '<div'.$class.'>';
+          $auction_content .= '<a href="'.get_auction_link($auction).'">'.$auction->name.'</a>';
+          if ($pics) {
+            $auction_content .= '<br><img src="'.get_auction_image($auction).'" alt="'.$auction->name.'" title="'.$auction->name.'">';
+          }
+          if ($price) {
+            $auction_content .= '<br>'.$auction->price;
+          }
+          if ($end) {
+            $auction_content .= '<br>'.$auction->ends;
+          }
+          $auction_content .= '</div>';
+          $block['content'] .= $auction_content;
+        }
+
+      }
+    return $block;
+  }
+}
+
+
+/**
+ * Helper Functions.
+ */
+
+/**
+ * return a SimpleXmlElement containing up to recent_auctions_num_items of recent auctions from the pitmart web service feed.
+ */
+function get_recent_auctions() {
+  return get_pitmart_feed(variable_get('pitmart_pitmart_url').'remote/getRecent.php?&num='.variable_get('recent_auctions_num_items').'&type='.variable_get('recent_auctions_type').'&price='.variable_get('recent_auctions_price').'&end='.variable_get('recent_auctions_end').'&exclusive='.variable_get('recent_auctions_exclusive'));
+}

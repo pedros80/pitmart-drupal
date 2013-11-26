@@ -1,0 +1,6 @@
+name = Pitmart
+description = A module that defines pitmart specific data for use in other pitmart modules. Your pitmart user ID and whether you are using the demo or live remote site.
+core = 7.x
+package = pitmart
+
+configure = admin/config/content/pitmart
