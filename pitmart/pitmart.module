@@ -44,7 +44,7 @@ function pitmart_form($form, &$form_state) {
     '#type' => 'radios',
     '#title' => t('Live/Demo'),
     '#default_value' => variable_get('pitmart_pitmart_url', 'demo'),
-    '#options' => array('http://www.pitmart.com/' => 'Live', 'http:/www.pitmart.com/demo/' => 'Demo'),
+    '#options' => array('http://www.pitmart.com/' => 'Live', 'http://www.pitmart.com/demo/' => 'Demo'),
     '#description' => t('Select whether data is coming from live pitmart site or demo site'),
     '#required' => TRUE,
     );
@@ -90,7 +90,7 @@ function pitmart_help($path, $arg) {
     case 'admin/help#pitmart':
       $output = '<h1>'.t('Configuration Module for Pitmart Data Modules').'</h1>';
       $output .= '<p><b>'.t('Must be configured before using User Auctions and/or Recent Auctions modules').'</b></p>';
-      $output .= '<p>'.t('Add your pitmart user id and whether or not you are using the pitmart live or demo site, e.g. http://www.pitmart.com/ or http://www.pitmart.com/demo/').'</p>';
+      $output .= '<p>'.t('Add your pitmart user id and select live or demo site data.').'</p>';
       return $output;
       break;
   }
@@ -134,29 +134,21 @@ function get_auction_image($auction) {
   }
 }
 
+
 /**
- * Use cURL to get content from pitmart web service feed.
+ * Create a SimpleXmlElement from the contents of the pitmart web service feed which are grabbed using a cURL object.
  * 
  * @param  [string] $feed [the url of the desired pitmart web service feed]
- * @return [string]       [the xml returned by the pitmart web service feed]
+ * @return [SimpleXmlElement]       [contains the required xml from the pitmart web service feed]
  */
-function get_pitmart_feed_object($feed) {
+function get_pitmart_feed($feed) {
    $ch = curl_init();
    curl_setopt($ch, CURLOPT_URL, $feed);
    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
    curl_setopt ($ch, CURLOPT_CONNECTTIMEOUT, 0);
    $output = curl_exec($ch);
    curl_close($ch);
-   return $output;
-}
 
-/**
- * Create a SimpleXmlElement from the contents of the pitmart web service feed.
- * 
- * @param  [string] $feed [the url of the desired pitmart web service feed]
- * @return [SimpleXmlElement]       [contains the required xml from the pitmart web service feed]
- */
-function get_pitmart_feed($feed) {
-   return new SimpleXmlElement(get_pitmart_feed_object($feed));
+   return new SimpleXmlElement($output);
 }
 
