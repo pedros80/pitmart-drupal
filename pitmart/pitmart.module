@@ -41,11 +41,11 @@ function pitmart_form($form, &$form_state) {
   );
 
   $form['pitmart_pitmart_url'] = array(
-    '#type' => 'textfield',
-    '#title' => t('URL to pitmart site'),
-    '#default_value' => variable_get('pitmart_pitmart_url', 'http://pitmartlive'),
-    '#size' => 50,
-    '#description' => t('The url (including http:// and trailing slash) of the pitmart site clubhouse is linked to. Live/Local'),
+    '#type' => 'radios',
+    '#title' => t('Live/Demo'),
+    '#default_value' => variable_get('pitmart_pitmart_url', 'demo'),
+    '#options' => array('http://www.pitmart.com/' => 'Live', 'http:/www.pitmart.com/demo/' => 'Demo'),
+    '#description' => t('Select whether data is coming from live pitmart site or demo site'),
     '#required' => TRUE,
     );
 
@@ -70,14 +70,7 @@ function pitmart_form_validate($form, &$form_state) {
     form_set_error('pitmart_user_id', t('You must enter a number for your user id'));
   }
   else if ($user_id <= 0) {
-    form_set_error('pitmart_user_id', t('Your pitmart ID must be postitive'));
-  }
-
-  if (substr($current_url, -1) != '/') {
-    form_set_error('pitmart_pitmart_url', t('URL must have trailing slash e.g. http://www.example.com/'));
-  }
-  if (substr($current_url,0,7) != 'http://') {
-    form_set_error('pitmart_pitmart_url', t('URL must start with http://'));
+    form_set_error('pitmart_user_id', t('Your pitmart ID must be greater than 0'));
   }
 }
 
